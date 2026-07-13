@@ -6,5 +6,4 @@
 CMakeLists.txt.user
 .vscode
 *.qmlc
-.clang-format
 compile_commands.json
