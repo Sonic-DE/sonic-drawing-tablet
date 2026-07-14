@@ -7,3 +7,4 @@ CMakeLists.txt.user
 .vscode
 *.qmlc
 compile_commands.json
+.ccls-cache
