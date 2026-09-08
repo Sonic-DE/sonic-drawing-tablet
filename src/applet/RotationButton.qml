@@ -18,21 +18,19 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import QtQuick
-import QtQuick.Layouts
-import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PC3
 
 PC3.ToolButton {
-    property string rotation;
+    required property TabletModel tabletModel
+    // Named tabletRotation rather than rotation: rotation is a real
+    // visual property of QQuickItem and must not be shadowed.
+    required property string tabletRotation
+    required property string tabletId
 
     onClicked : {
-        if (tabletComboBox.currentIndex < 0) {
+        if (tabletId === "") {
             return;
         }
-        var service = dataSource.serviceForSource("wacomtablet");
-        var operation = service.operationDescription("SetRotation");
-        operation.tabletId = dataModel.get(tabletComboBox.currentIndex).id;
-        operation.rotation = rotation
-        service.startOperationCall(operation);
+        tabletModel.setRotation(tabletId, tabletRotation);
     }
 }

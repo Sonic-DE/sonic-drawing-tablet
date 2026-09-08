@@ -20,31 +20,49 @@
 
 import QtQuick
 import QtQuick.Layouts
-import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PC3
 import org.kde.ksvg as KSvg
 import org.kde.kirigami as Kirigami
 
 Item {
+    id: root
+
+    required property TabletModel tabletModel
+    required property bool active
+
     function defaultValue(value, d) {
         return (typeof value == 'undefined') ? d : value;
     }
 
     function deviceLabel() {
-        if (dataSource.data["wacomtablet"]["serviceAvailable"]) {
-            if (dataModel.count == 0) {
-                return i18n("Graphic Tablet - Device not detected.");
+        if (tabletModel.serviceAvailable) {
+            if (tabletModel.count == 0) {
+                return i18n("Graphic Tablet - Device not detected."); // qmllint disable unqualified
             } else {
                 if (tabletComboBox.currentIndex >= 0) {
-                    return dataModel.get(tabletComboBox.currentIndex).name;
+                    return currentTablet.name;
                 }
                 return "";
             }
         }
 
-        return i18n("Error - Tablet service not available.");
+        return i18n("Error - Tablet service not available."); // qmllint disable unqualified
     }
-    
+
+    readonly property var currentTablet: {
+        // read revision first so role-only updates reevaluate this binding
+        const _rev = tabletModel.revision;
+        if (tabletComboBox.currentIndex >= 0 && tabletComboBox.currentIndex < tabletModel.count) {
+            return tabletModel.get(tabletComboBox.currentIndex);
+        }
+        return ({});
+    }
+
+    KSvg.Svg {
+        id: lineSvg
+        imagePath: "widgets/line"
+    }
+
     Row {
         id: title
         anchors {
@@ -53,7 +71,7 @@ Item {
             right: parent.right
         }
         spacing: Kirigami.Units.smallSpacing
-        
+
         Kirigami.Icon {
             id: titleIcon
             source: "input-tablet"
@@ -64,7 +82,7 @@ Item {
             id: deviceNameLabel
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - titleIcon.width - parent.spacing
-            text: deviceLabel()
+            text: root.deviceLabel()
             wrapMode: Text.Wrap
         }
     }
@@ -92,7 +110,7 @@ Item {
         }
         visible: !root.active
         spacing: Kirigami.Units.smallSpacing * 2
-        
+
         Kirigami.Icon {
             id: errorIcon
             width: Kirigami.Units.iconSizes.medium
@@ -102,15 +120,15 @@ Item {
         PC3.Label {
             id: errorLabel
             width: parent.width - errorIcon.width - parent.spacing
-            text: dataSource.data["wacomtablet"]["serviceAvailable"] ?
-                i18n("This widget is inactive because your tablet device is not connected or currently not supported.") :
-                i18n("Please start the KDE wacom tablet service.\nThe service is required for tablet detection and profile support.")
+            text: root.tabletModel.serviceAvailable ?
+                i18n("This widget is inactive because your tablet device is not connected or currently not supported.") : // qmllint disable unqualified
+                i18n("Please start the KDE wacom tablet service.\nThe service is required for tablet detection and profile support.") // qmllint disable unqualified
             wrapMode: Text.Wrap
         }
     }
 
     function setProfile() {
-        profileComboBox.currentIndex = dataModel.get(tabletComboBox.currentIndex).currentProfile;
+        profileComboBox.currentIndex = defaultValue(currentTablet.currentProfile, -1);
     }
 
     GridLayout {
@@ -124,13 +142,13 @@ Item {
         visible: root.active
         columns: 2
         PC3.Label {
-            text: i18n("Select Tablet:")
+            text: i18n("Select Tablet:") // qmllint disable unqualified
         }
 
         PC3.ComboBox {
             id: tabletComboBox
             Layout.fillWidth: true
-            model: dataModel
+            model: root.tabletModel
             textRole: "name"
             onCurrentIndexChanged: {
                 profileModel.clear();
@@ -139,20 +157,20 @@ Item {
                     return;
                 }
 
-                var profiles = dataModel.get(tabletComboBox.currentIndex).profiles;
-                if (typeof profiles == "undefined") {
+                var profiles = root.currentTablet.profiles;
+                if (typeof profiles == 'undefined') {
                     return;
                 }
                 for (var i = 0; i < profiles.length; i++) {
                     profileModel.append({"name" : profiles[i]});
                 }
 
-                setProfile();
+                root.setProfile();
             }
         }
 
         PC3.Label {
-            text: i18n("Select Profile:")
+            text: i18n("Select Profile:") // qmllint disable unqualified
         }
 
         ListModel {
@@ -165,37 +183,29 @@ Item {
             model: profileModel
             textRole: "name"
 
-            onActivated: {
+            onActivated: function(index) {
                 if (tabletComboBox.currentIndex < 0) {
                     return;
                 }
-                var service = dataSource.serviceForSource("wacomtablet");
-                var operation = service.operationDescription("SetProfile");
-                operation.tabletId = dataModel.get(tabletComboBox.currentIndex).id;
-                operation.profile = profileModel.get(index).name;
-                service.startOperationCall(operation);
+                root.tabletModel.setProfile(root.currentTablet.id, profileModel.get(index).name);
             }
         }
     }
 
     Connections {
-        target: dataSource
-        function onConnectedSourcesChanged() {
+        target: root.tabletModel
+        function onCountChanged() {
             tabletComboBox.currentIndex = -1;
-            if (dataModel.count > 0) {
+            if (root.tabletModel.count > 0) {
                 tabletComboBox.currentIndex = 0;
             }
         }
 
-        function onNewData() {
+        function onRevisionChanged() {
             if (tabletComboBox.currentIndex < 0) {
                 return;
             }
-
-            var current = dataModel.get(tabletComboBox.currentIndex)
-            if (sourceName == current.DataEngineSource) {
-                setProfile();
-            }
+            root.setProfile();
         }
     }
 
@@ -208,87 +218,92 @@ Item {
             bottom: parent.bottom
             topMargin: Kirigami.Units.smallSpacing
         }
-        title: i18nc( "Groupbox Settings for the applet to change some values on the fly", "Settings" )
+        title: i18nc( "Groupbox Settings for the applet to change some values on the fly", "Settings" ) // qmllint disable unqualified
         GridLayout {
             columns: 2
             PC3.Label {
-                visible: defaultValue(dataModel.get(tabletComboBox.currentIndex).hasTouch, false)
-                text: i18nc( "Toggle between touch on/off", "Touch:" )
+                visible: root.defaultValue(root.currentTablet.hasTouch, false)
+                text: i18nc( "Toggle between touch on/off", "Touch:" ) // qmllint disable unqualified
             }
 
             PC3.CheckBox {
-                visible: defaultValue(dataModel.get(tabletComboBox.currentIndex).hasTouch, false);
-                checked: defaultValue(dataModel.get(tabletComboBox.currentIndex).touch, false);
+                visible: root.defaultValue(root.currentTablet.hasTouch, false);
+                checked: root.defaultValue(root.currentTablet.touch, false);
+                onClicked: {
+                    if (tabletComboBox.currentIndex >= 0) {
+                        root.tabletModel.setTouch(root.currentTablet.id, checked);
+                    }
+                }
             }
 
 
             PC3.Label {
-                text: i18nc( "Rotation of the tablet pad", "Rotation:" )
+                text: i18nc( "Rotation of the tablet pad", "Rotation:" ) // qmllint disable unqualified
             }
 
             RowLayout {
                 RotationButton {
-                    rotation: "none"
+                    tabletRotation: "none"
                     icon.name: "input-tablet"
-                    PC3.ToolTip.text: i18nc("Either no orientation or the current screen orientation is applied to the tablet.", "Default Orientation");
+                    tabletModel: root.tabletModel
+                    tabletId: root.currentTablet.id ?? ""
+                    PC3.ToolTip.text: i18nc("Either no orientation or the current screen orientation is applied to the tablet.", "Default Orientation"); // qmllint disable unqualified
                     PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                     PC3.ToolTip.visible: hovered
                 }
                 RotationButton {
-                    rotation: "cw"
+                    tabletRotation: "cw"
                     icon.name: "object-rotate-left"
-                    PC3.ToolTip.text: i18nc("The tablet will be rotated clockwise.", "Rotate Tablet Clockwise")
+                    tabletModel: root.tabletModel
+                    tabletId: root.currentTablet.id ?? ""
+                    PC3.ToolTip.text: i18nc("The tablet will be rotated clockwise.", "Rotate Tablet Clockwise") // qmllint disable unqualified
                     PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                     PC3.ToolTip.visible: hovered
                 }
                 RotationButton {
-                    rotation: "ccw"
+                    tabletRotation: "ccw"
                     icon.name: "object-rotate-right"
-                    PC3.ToolTip.text: i18nc("The tablet will be rotated counterclockwise.", "Rotate Tablet Counterclockwise")
+                    tabletModel: root.tabletModel
+                    tabletId: root.currentTablet.id ?? ""
+                    PC3.ToolTip.text: i18nc("The tablet will be rotated counterclockwise.", "Rotate Tablet Counterclockwise") // qmllint disable unqualified
                     PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                     PC3.ToolTip.visible: hovered
                 }
                 RotationButton {
-                    rotation: "half"
+                    tabletRotation: "half"
                     icon.name: "object-flip-vertical"
-                    PC3.ToolTip.text: i18nc("The tablet will be rotated up side down.", "Rotate Tablet Upside-Down")
+                    tabletModel: root.tabletModel
+                    tabletId: root.currentTablet.id ?? ""
+                    PC3.ToolTip.text: i18nc("The tablet will be rotated up side down.", "Rotate Tablet Upside-Down") // qmllint disable unqualified
                     PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                     PC3.ToolTip.visible: hovered
                 }
             }
             PC3.Label {
-                text: i18nc( "Toggle between absolute/relative penmode", "Mode:" )
+                text: i18nc( "Toggle between absolute/relative penmode", "Mode:" ) // qmllint disable unqualified
             }
             RowLayout {
                 PC3.RadioButton {
-                    text: i18nc( "absolute pen movement (pen mode)", "Absolute" )
-                    checked: defaultValue(dataModel.get(tabletComboBox.currentIndex).stylusMode, true);
+                    text: i18nc( "absolute pen movement (pen mode)", "Absolute" ) // qmllint disable unqualified
+                    checked: root.defaultValue(root.currentTablet.stylusMode, true);
                     onClicked : {
                         if (tabletComboBox.currentIndex < 0) {
                             return;
                         }
-                        var service = dataSource.serviceForSource("wacomtablet");
-                        var operation = service.operationDescription("SetStylusMode");
-                        operation.tabletId = dataModel.get(tabletComboBox.currentIndex).id;
-                        operation.mode = "absolute";
-                        service.startOperationCall(operation);
+                        root.tabletModel.setStylusMode(root.currentTablet.id, "absolute");
                     }
                 }
                 PC3.RadioButton {
-                    text: i18nc( "relative pen movement (mouse mode)", "Relative" )
+                    text: i18nc( "relative pen movement (mouse mode)", "Relative" ) // qmllint disable unqualified
+                    checked: !root.defaultValue(root.currentTablet.stylusMode, true)
                     onClicked : {
                         if (tabletComboBox.currentIndex < 0) {
                             return;
                         }
-                        var service = dataSource.serviceForSource("wacomtablet");
-                        var operation = service.operationDescription("SetStylusMode");
-                        operation.tabletId = dataModel.get(tabletComboBox.currentIndex).id;
-                        operation.mode = "relative";
-                        service.startOperationCall(operation);
+                        root.tabletModel.setStylusMode(root.currentTablet.id, "relative");
                     }
                 }
             }
         }
     }
-
 }
