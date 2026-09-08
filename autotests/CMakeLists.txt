@@ -11,6 +11,7 @@ set(WACOM_KDED_TEST_LIBS kded_wacomtablet_lib ${kded_wacomtablet_LIBS} Qt::Test)
 set(WACOM_KCM_TEST_LIBS kcm_testlib ${kcm_wacomtablet_LIBS} Qt::Test)
 
 add_subdirectory(faketablet)
+add_subdirectory(applet/tabletmodel)
 
 # Add common Tests
 add_subdirectory( common/buttonshortcut )

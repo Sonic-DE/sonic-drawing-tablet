@@ -19,26 +19,19 @@
  */
 
 import QtQuick
-import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
-import org.kde.plasma.plasma5support as P5Support
-import org.kde.ksvg as KSvg
 import org.kde.kcmutils as KCMUtils
 import org.kde.config as KConfig
+
+pragma ComponentBehavior: Bound
 
 PlasmoidItem {
     id: root
 
-    function action_wacomtabletkcm() {
-        var service = dataSource.serviceForSource("wacomtablet");
-        var operation = service.operationDescription("RunKCM");
-        service.startOperationCall(operation);
-    }
-
     PlasmaCore.Action {
         id: configureAction
-        text: i18n("&Configure Graphics Tablet...")
+        text: i18n("&Configure Graphics Tablet...") // qmllint disable unqualified
         icon.name: "configure"
         visible: KConfig.KAuthorized.authorizeControlModule("kcm_wacomtablet");
         onTriggered: KCMUtils.KCMLauncher.openSystemSettings("kcm_wacomtablet");
@@ -48,26 +41,18 @@ PlasmoidItem {
         Plasmoid.setInternalAction("configure", configureAction)
     }
 
-    property bool active: dataSource.data["wacomtablet"]["serviceAvailable"] && dataModel.count != 0
+    readonly property TabletModel tabletModel: TabletModel {
+        id: tabletModelInstance
+    }
 
-    toolTipMainText: i18n("Wacom Tablet")
+    property bool active: tabletModelInstance.serviceAvailable && tabletModelInstance.count != 0
+
+    toolTipMainText: i18n("Wacom Tablet") // qmllint disable unqualified
     Plasmoid.status: active ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
     Plasmoid.icon: "input-tablet"
-    KSvg.Svg {
-        id: lineSvg
-        imagePath: "widgets/line"
-    }
 
-    P5Support.DataSource {
-        id: dataSource
-        engine: "wacomtablet"
-        connectedSources: dataSource.sources
+    fullRepresentation: FullRepresentation {
+        tabletModel: root.tabletModel
+        active: root.active
     }
-    P5Support.DataModel {
-        id: dataModel
-        dataSource: dataSource
-        sourceFilter: "Tablet.*"
-    }
-
-    fullRepresentation: FullRepresentation { }
 }
