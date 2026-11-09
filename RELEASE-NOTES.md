@@ -2,7 +2,7 @@
 
 Sonic Drawing Tablet lets you set up and fine-tune drawing tablets and pens in SonicDE.
 
-## Unreleased
+## 6.8.2 (2026-11-10)
 
 - The tablet detection helper now shows up on the SonicDE desktop.
 - The settings module is now called Drawing Tablet.
